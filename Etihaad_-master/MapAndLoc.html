@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Safe Path Navigation</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.10/semantic.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <meta charset="utf-8">
+    <style>
+      body {
+        background-image: url('https://www.transparenttextures.com/patterns/always-grey.png');
+        background-repeat: repeat;
+        font-family: 'Georgia', serif;
+        transition: background 0.3s, color 0.3s;
+      }
+      body.dark-mode {
+        background-color: #121212;
+        color: #ffffff;
+      }
+      #map {
+        height: 500px;
+        width: 100%;
+        margin-top: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .ui.main.container.segment {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .dark-mode .ui.main.container.segment {
+        background: rgba(45, 45, 45, 0.9);
+        color: #ffffff;
+      }
+      .ui.input {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      .ui.buttons .ui.button {
+        margin: 5px;
+        border-radius: 5px;
+      }
+      .ui.red.button {
+        background-color: #db2828;
+        color: white;
+      }
+      .ui.red.button:hover {
+        background-color: #c82323;
+      }
+      .route-info {
+        margin-top: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .dark-mode .route-info {
+        background: rgba(45, 45, 45, 0.9);
+        color: #ffffff;
+      }
+      .incident-marker {
+        background-color: red;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+      }
+      .ui.form .field label {
+        font-weight: bold;
+      }
+      .ui.form textarea {
+        resize: vertical;
+      }
+      .ui.segment {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .dark-mode .ui.segment {
+        background: rgba(45, 45, 45, 0.9);
+        color: #ffffff;
+      }
+      h1 {
+        font-size: 3.5rem;
+        color: #333;
+      }
+      .dark-mode h1 {
+        color: #ffffff;
+      }
+      h2 {
+        font-size: 1.5rem;
+        color: #555;
+      }
+      .dark-mode h2 {
+        color: #dddddd;
+      }
+      .dark-mode-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+      .incident-history {
+        margin-top: 20px;
+      }
+      .route-comparison {
+        margin-top: 20px;
+      }
+      .route-comparison table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .route-comparison th, .route-comparison td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .route-comparison th {
+        background-color: #f2f2f2;
+      }
+      .dark-mode .route-comparison th {
+        background-color: #333;
+      }
+      .emergency-contacts {
+        margin-top: 20px;
+      }
+      .emergency-contacts table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .emergency-contacts th, .emergency-contacts td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .emergency-contacts th {
+        background-color: #f2f2f2;
+      }
+      .dark-mode .emergency-contacts th {
+        background-color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dark-mode-toggle">
+      <button class="ui button" id="toggle-dark-mode">Toggle Dark Mode</button>
+    </div>
+    <div class="ui main container segment">
+      <h1>Safe Path Navigation</h1>
+      <h2 style="text-align: right;">Because you must look before you leave!</h2>
+    </div>
+    <div class="ui container">
+      <div class="ui grid">
+        <div class="eight wide column">
+          <input id="origin-input" class="ui input" type="text" placeholder="Enter an origin location">
+        </div>
+        <div class="eight wide column">
+          <input id="destination-input" class="ui input" type="text" placeholder="Enter a destination location">
+        </div>
+      </div>
+      <div class="ui buttons">
+        <button class="ui button" id="changemode-walking">Walking</button>
+        <button class="ui button" id="changemode-transit">Transit</button>
+        <button class="ui button" id="changemode-driving">Driving</button>
+      </div>
+      <button class="ui red button" id="report-incident">Report Incident</button>
+    </div>
+    <div id="map" class="ui container"></div>
+    <div class="ui container">
+      <h2>Choose the path with the least danger index for a safe travel!</h2>
+      <div id="route-info-container"></div>
+    </div>
+
+    <!-- Incident History Section -->
+    <div class="ui container incident-history">
+      <h2>Incident History</h2>
+      <div class="ui form">
+        <div class="field">
+          <label>Filter by Type</label>
+          <select id="filter-type" class="ui dropdown">
+            <option value="all">All</option>
+            <option value="accident">Accident</option>
+            <option value="crime">Crime</option>
+            <option value="roadblock">Roadblock</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Filter by Severity</label>
+          <select id="filter-severity" class="ui dropdown">
+            <option value="all">All</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+      <table class="ui celled table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Description</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="incident-list">
+          <!-- Incident rows will be added here dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Route Comparison Section -->
+    <div class="ui container route-comparison">
+      <h2>Route Comparison</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Route</th>
+            <th>Distance (km)</th>
+            <th>Duration (min)</th>
+            <th>Danger Index</th>
+            <th>Safety Score</th>
+          </tr>
+        </thead>
+        <tbody id="route-comparison-table">
+          <!-- Route comparison rows will be added here dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Emergency Contacts Section -->
+    <div class="ui container emergency-contacts">
+      <h2>Emergency Contacts</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody id="emergency-contacts-list">
+          <!-- Emergency contact rows will be added here dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script>
+      const openRouteServiceApiKey = '5b3ce3597851110001cf62485171da2f93cf4c3688581987dd0d7681';
+
+      var map = L.map('map').setView([28.6139, 77.2090], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      var incidentLayer = L.layerGroup().addTo(map);
+      var currentTravelMode = 'walking'; // Default travel mode
+      var reportedIncidents = []; // Store reported incidents
+      var routes = []; // Store calculated routes for comparison
+
+      // Simulated crime data for New Delhi
+      const crimeData = [
+        { lat: 28.62, lng: 77.21, severity: 'high' },
+        { lat: 28.61, lng: 77.22, severity: 'medium' },
+        { lat: 28.60, lng: 77.20, severity: 'high' },
+        { lat: 28.59, lng: 77.19, severity: 'low' },
+        { lat: 28.58, lng: 77.18, severity: 'medium' },
+        { lat: 28.57, lng: 77.17, severity: 'high' },
+        { lat: 28.56, lng: 77.16, severity: 'low' },
+        { lat: 28.55, lng: 77.15, severity: 'medium' },
+      ];
+
+      // Simulated emergency contacts for New Delhi
+      const emergencyContacts = [
+        { type: 'Police', name: 'Delhi Police', phone: '100', address: 'New Delhi, India' },
+        { type: 'Hospital', name: 'AIIMS Delhi', phone: '011-26588500', address: 'Ansari Nagar, New Delhi' },
+        { type: 'Fire', name: 'Delhi Fire Service', phone: '101', address: 'New Delhi, India' },
+        { type: 'Ambulance', name: 'Centralized Ambulance Service', phone: '102', address: 'New Delhi, India' },
+      ];
+
+      // Mark high-crime areas on the map with tooltips
+      crimeData.forEach(crime => {
+        const color = crime.severity === 'high' ? 'red' : crime.severity === 'medium' ? 'orange' : 'yellow';
+        const riskLevel = crime.severity === 'high' ? 'High Risk' : crime.severity === 'medium' ? 'Medium Risk' : 'Low Risk';
+        L.circleMarker([crime.lat, crime.lng], {
+          radius: 8,
+          fillColor: color,
+          color: '#000',
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.8
+        }).bindTooltip(riskLevel).addTo(map);
+      });
+
+      // Display emergency contacts
+      function displayEmergencyContacts() {
+        const emergencyContactsList = document.getElementById('emergency-contacts-list');
+        emergencyContactsList.innerHTML = '';
+
+        emergencyContacts.forEach(contact => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${contact.type}</td>
+            <td>${contact.name}</td>
+            <td>${contact.phone}</td>
+            <td>${contact.address}</td>
+          `;
+          emergencyContactsList.appendChild(row);
+        });
+      }
+
+      // Calculate routes
+      function calculateRoutes(origin, destination, travelMode) {
+        const profile = travelMode === 'driving' ? 'driving-car' : travelMode === 'walking' ? 'foot-walking' : 'cycling-regular';
+
+        const offset = 0.01; // Adjusted offset to ensure clear route separation
+        const variations = [
+          { start: origin, end: destination },
+          { start: { lat: origin.lat + offset, lng: origin.lng + offset }, end: { lat: destination.lat - offset, lng: destination.lng - offset } },
+          { start: { lat: origin.lat - offset, lng: origin.lng - offset }, end: { lat: destination.lat + offset, lng: destination.lng + offset } }
+        ];
+
+        const colors = ['blue', 'green', 'red'];
+
+        // Remove previous routes and route info
+        map.eachLayer(layer => {
+          if (layer instanceof L.Polyline || layer instanceof L.Marker) {
+            map.removeLayer(layer);
+          }
+        });
+        document.getElementById('route-info-container').innerHTML = '';
+        routes = []; // Reset routes for comparison
+
+        variations.forEach((variation, index) => {
+          const url = `https://api.openrouteservice.org/v2/directions/${profile}?api_key=${openRouteServiceApiKey}&start=${variation.start.lng},${variation.start.lat}&end=${variation.end.lng},${variation.end.lat}`;
+
+          fetch(url)
+            .then(response => response.json())
+            .then(routeData => {
+              if (!routeData.features || routeData.features.length === 0) {
+                console.warn(`Route ${index + 1} could not be generated.`);
+                return;
+              }
+
+              const routeCoordinates = routeData.features[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+              const routePolyline = L.polyline(routeCoordinates, { color: colors[index], weight: 4, opacity: 0.8 }).addTo(map);
+
+              const dangerIndex = Math.random() * 10; // Simulated danger index (Replace with real calculations)
+              const safetyScore = calculateSafetyScore(routeData, dangerIndex); // AI Safety Score
+              displayRouteInfo(routeData, dangerIndex, safetyScore, index);
+
+              // Store route data for comparison
+              routes.push({
+                color: colors[index],
+                distance: (routeData.features[0].properties.segments[0].distance / 1000).toFixed(2),
+                duration: (routeData.features[0].properties.segments[0].duration / 60).toFixed(2),
+                dangerIndex: dangerIndex.toFixed(2),
+                safetyScore: safetyScore.toFixed(2)
+              });
+
+              const bounds = L.latLngBounds(routeCoordinates);
+              map.fitBounds(bounds);
+
+              // Update route comparison table
+              updateRouteComparisonTable();
+            })
+            .catch(error => {
+              console.error('Error fetching route:', error);
+            });
+        });
+      }
+
+      function calculateSafetyScore(routeData, dangerIndex) {
+        // Simulate AI Safety Score calculation
+        const distance = routeData.features[0].properties.segments[0].distance / 1000; // in km
+        const duration = routeData.features[0].properties.segments[0].duration / 60; // in minutes
+        const safetyScore = 100 - (dangerIndex * 10); // Higher score is safer
+        return Math.max(0, Math.min(100, safetyScore)); // Ensure score is between 0 and 100
+      }
+
+      function displayRouteInfo(routeData, dangerIndex, safetyScore, index) {
+        const div = document.createElement('div');
+        div.className = "ui segment route-info";
+        document.getElementById('route-info-container').appendChild(div);
+
+        div.innerHTML = `
+          <ul class="msg">
+            <li>Route ${index + 1} is colored ${index === 0 ? 'blue' : index === 1 ? 'green' : 'red'}</li>
+            <li>Distance: ${(routeData.features[0].properties.segments[0].distance / 1000).toFixed(2)} km</li>
+            <li>Duration: ${(routeData.features[0].properties.segments[0].duration / 60).toFixed(2)} minutes</li>
+            <li>Danger Index: ${dangerIndex.toFixed(2)}</li>
+            <li>AI Safety Score: ${safetyScore.toFixed(2)}</li>
+          </ul>
+        `;
+      }
+
+      function geocodeLocation(query, callback) {
+        const formattedQuery = `${query}, Delhi, India`; // Force API to consider only Delhi locations
+        const url = `https://api.openrouteservice.org/geocode/search?api_key=${openRouteServiceApiKey}&text=${encodeURIComponent(formattedQuery)}`;
+
+        fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            console.log(`Geocode response for "${query}":`, data); // Debugging output
+
+            if (data.features.length > 0) {
+              // Find the best match based on relevance score
+              const bestMatch = data.features.reduce((prev, curr) => 
+                curr.properties.confidence > prev.properties.confidence ? curr : prev
+              );
+              const location = bestMatch.geometry.coordinates;
+              console.log(`Resolved "${query}" to: `, location); // Debugging output
+              callback({ lat: location[1], lng: location[0] });
+            } else {
+              alert(`Location "${query}" not found in Delhi. Try a different input.`);
+            }
+          })
+          .catch(error => {
+            console.error('Error geocoding location:', error);
+            alert('Failed to fetch location. Please try again.');
+          });
+      }
+
+      function updateIncidentHistory() {
+        const typeFilter = document.getElementById('filter-type').value;
+        const severityFilter = document.getElementById('filter-severity').value;
+
+        const filteredIncidents = reportedIncidents.filter(incident => {
+          return (typeFilter === 'all' || incident.type === typeFilter) &&
+                 (severityFilter === 'all' || incident.severity === severityFilter);
+        });
+
+        const incidentList = document.getElementById('incident-list');
+        incidentList.innerHTML = '';
+
+        filteredIncidents.forEach((incident, index) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${incident.type}</td>
+            <td>${incident.severity}</td>
+            <td>${incident.description}</td>
+            <td><button class="ui red button" onclick="deleteIncident(${index})">Delete</button></td>
+          `;
+          incidentList.appendChild(row);
+        });
+      }
+
+      function deleteIncident(index) {
+        reportedIncidents.splice(index, 1);
+        updateIncidentHistory();
+      }
+
+      function updateRouteComparisonTable() {
+        const comparisonTable = document.getElementById('route-comparison-table');
+        comparisonTable.innerHTML = '';
+
+        routes.forEach((route, index) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td style="color: ${route.color}">Route ${index + 1}</td>
+            <td>${route.distance}</td>
+            <td>${route.duration}</td>
+            <td>${route.dangerIndex}</td>
+            <td>${route.safetyScore}</td>
+          `;
+          comparisonTable.appendChild(row);
+        });
+      }
+
+      $(document).ready(function () {
+        $('#origin-input, #destination-input').on('change', function () {
+          const originQuery = $('#origin-input').val();
+          const destinationQuery = $('#destination-input').val();
+
+          if (originQuery && destinationQuery) {
+            geocodeLocation(originQuery, function (origin) {
+              geocodeLocation(destinationQuery, function (destination) {
+                calculateRoutes(origin, destination, currentTravelMode);
+              });
+            });
+          }
+        });
+
+        $('#changemode-walking, #changemode-transit, #changemode-driving').on('click', function () {
+          currentTravelMode = $(this).attr('id').replace('changemode-', '');
+          const originQuery = $('#origin-input').val();
+          const destinationQuery = $('#destination-input').val();
+
+          if (originQuery && destinationQuery) {
+            geocodeLocation(originQuery, function (origin) {
+              geocodeLocation(destinationQuery, function (destination) {
+                calculateRoutes(origin, destination, currentTravelMode);
+              });
+            });
+          }
+        });
+
+        $('#report-incident').on('click', function () {
+          alert('Click on the map to report an incident.');
+          map.on('click', function (e) {
+            const popupContent = `
+              <div class="ui form">
+                <div class="field">
+                  <label>Incident Type</label>
+                  <select class="ui dropdown" id="incident-type">
+                    <option value="accident">Accident</option>
+                    <option value="crime">Crime</option>
+                    <option value="roadblock">Roadblock</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Description</label>
+                  <textarea id="incident-description" rows="2" placeholder="Provide details about the incident"></textarea>
+                </div>
+                <div class="field">
+                  <label>Severity</label>
+                  <select class="ui dropdown" id="incident-severity">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <button class="ui red button" onclick="submitIncident()">Submit</button>
+              </div>
+            `;
+
+            const marker = L.marker(e.latlng, {
+              icon: L.divIcon({ className: 'incident-marker' })
+            }).addTo(incidentLayer);
+
+            marker.bindPopup(popupContent).openPopup();
+          });
+        });
+
+        $('#toggle-dark-mode').on('click', function () {
+          document.body.classList.toggle('dark-mode');
+        });
+
+        $('#filter-type, #filter-severity').on('change', function () {
+          updateIncidentHistory();
+        });
+
+        // Display emergency contacts on page load
+        displayEmergencyContacts();
+      });
+
+      function submitIncident() {
+        const type = document.getElementById('incident-type').value;
+        const description = document.getElementById('incident-description').value;
+        const severity = document.getElementById('incident-severity').value;
+
+        reportedIncidents.push({ type, description, severity });
+        updateIncidentHistory();
+        alert('Incident reported successfully!');
+        map.off('click'); // Stop listening for clicks after reporting
+      }
+    </script>
+  </body>
+</html>

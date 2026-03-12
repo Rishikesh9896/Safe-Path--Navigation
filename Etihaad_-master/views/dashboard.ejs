@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Dashboard - Etihaad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Top header with title + nav */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.18);
+            backdrop-filter: blur(4px);
+        }
+        .brand {
+            color: #ffffff;
+        }
+        .brand h1 {
+            font-size: 32px;
+            font-family: Georgia, serif;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .brand p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Top-right nav buttons */
+        .top-nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 9px 20px;
+            background: #ffffff;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+        .btn:hover {
+            background: #f1f1ff;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn.logout {
+            background: #e74c3c;
+            color: #fff;
+        }
+        .btn.logout:hover {
+            background: #c0392b;
+        }
+
+        /* User header card */
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+        .user-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .info-card {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .info-card strong {
+            color: #667eea;
+            display: block;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        .info-card p {
+            font-size: 1.6em;
+            color: #333;
+            margin-top: 8px;
+            font-weight: bold;
+            word-break: break-word;
+        }
+
+        .progress-wrapper {
+            margin-top: 18px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .progress-wrapper strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+            color: #333;
+        }
+        .progress {
+            width: 100%;
+            height: 18px;
+            background: #e6e6e6;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #34c3ff 0%, #667eea 100%);
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+
+        .routes-section, .stats-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .section-title {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .routes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .route-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .route-card:hover {
+            transform: translateY(-5px);
+        }
+        .route-card h3 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        .route-detail {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+        .route-detail strong {
+            opacity: 0.9;
+        }
+
+        .places-list {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .places-list ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .places-list li {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .stat-box .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        /* Responsive tweak for small screens */
+        @media (max-width: 768px) {
+            .top-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .brand h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Top header: title + nav buttons -->
+        <div class="top-header">
+            <div class="brand">
+                <h1>Safe Path Navigation</h1>
+                <p>Because you must look before you leave!</p>
+            </div>
+            <div class="top-nav">
+                <a href="/maps" class="btn">🗺️ View Map</a>
+                <a href="/analytics" class="btn">📈 View Analytics</a>
+                <a href="/stats" class="btn">📊 View Stats</a>
+                <a href="/logout" class="btn logout">🚪 Logout</a>
+            </div>
+        </div>
+
+        <% 
+            // Provide sample fallback data so the dashboard looks populated
+            var routesToShow = (user.routes && user.routes.length) ? user.routes : [
+                {name: 'Market Run', distance: 12, incidents: 0, date: '2024-11-15'},
+                {name: 'Evening Commute', distance: 8, incidents: 1, date: '2024-11-16'},
+                {name: 'Weekend Trip', distance: 25, incidents: 0, date: '2024-11-18'}
+            ];
+            var placesToShow = (user.placesVisited && user.placesVisited.length) ? user.placesVisited : ['Market', 'Office', 'Mall', 'Airport'];
+            var totalDistanceToShow = (user.totalDistance && user.totalDistance > 0) ? user.totalDistance : routesToShow.reduce(function(s,r){ return s + (r.distance||0); }, 0);
+            var incidentsToShow = (user.totalIncidentsReported && user.totalIncidentsReported > 0) ? user.totalIncidentsReported : routesToShow.reduce(function(s,r){ return s + (r.incidents||0); }, 0);
+        %>
+
+        <!-- Header with User Profile -->
+        <div class="header">
+            <h1>👤 <%= user.name %></h1>
+            <div class="user-info">
+                <div class="info-card">
+                    <strong>Email</strong>
+                    <p><%= user.email %></p>
+                </div>
+                <div class="info-card">
+                    <strong>Member Since</strong>
+                    <p><%= user.joinDate %></p>
+                </div>
+                <div class="info-card">
+                    <strong>Total Distance</strong>
+                    <p><%= user.totalDistance %> km</p>
+                </div>
+                <div class="info-card">
+                    <strong>Incidents Reported</strong>
+                    <p><%= user.totalIncidentsReported %></p>
+                </div>
+            </div>
+
+            <!-- Progress toward 100 km (visual) - only show when > 0 -->
+            <% if (user.displayTotalDistance && user.displayTotalDistance > 0) { %>
+                <div class="progress-wrapper">
+                    <strong>Progress Toward 100 km</strong>
+                    <div class="progress" aria-hidden="true">
+                        <div class="progress-bar" data-percent="<%= (user.displayTotalDistance || 0) %>"></div>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- Routes Section -->
+        <div class="routes-section">
+            <h2 class="section-title">🛣️ Your Routes</h2>
+            <div class="routes-grid">
+                <% routesToShow.forEach(function(route) { %>
+                    <div class="route-card">
+                        <h3><%= route.name %></h3>
+                        <div class="route-detail">
+                            <strong>Distance:</strong>
+                            <span><%= route.distance %> km</span>
+                        </div>
+                        <div class="route-detail">
+                            <strong>Date Traveled:</strong>
+                            <span><%= route.date %></span>
+                        </div>
+                        <div class="route-detail">
+                            <strong>Incidents:</strong>
+                            <span><%= route.incidents %> reported</span>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        </div>
+
+        <!-- Places Visited -->
+        <div class="routes-section">
+            <h2 class="section-title">📍 Places You've Visited</h2>
+            <div class="places-list">
+                <ul>
+                    <% placesToShow.forEach(function(place) { %>
+                        <li><%= place %></li>
+                    <% }); %>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Statistics Summary -->
+        <div class="stats-section">
+            <h2 class="section-title">📊 Your Activity Summary</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="number"><%= routesToShow.length %></span>
+                    <span class="label">Routes Used</span>
+                </div>
+                <div class="stat-box">
+                    <span class="number"><%= totalDistanceToShow %></span>
+                    <span class="label">KM Traveled</span>
+                </div>
+                <div class="stat-box">
+                    <span class="number"><%= incidentsToShow %></span>
+                    <span class="label">Incidents Reported</span>
+                </div>
+                <div class="stat-box">
+                    <span class="number"><%= placesToShow.length %></span>
+                    <span class="label">Places Visited</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Set progress bar widths based on data-percent attributes
+        (function(){
+            var bars = document.querySelectorAll('.progress-bar');
+            bars.forEach(function(bar){
+                var pct = parseFloat(bar.getAttribute('data-percent')) || 0;
+                bar.style.width = pct + '%';
+            });
+        })();
+    </script>
+</body>
+</html>
